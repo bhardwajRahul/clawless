@@ -196,6 +196,32 @@ export class GitService {
     return newCommit.sha;
   }
 
+  /**
+   * Check whether a GitHub repo is public and whether the given token (if any) has push access.
+   * Works without a token for the visibility check; push-access requires a token.
+   */
+  static async checkRepoVisibility(
+    owner: string,
+    repo: string,
+    token?: string,
+  ): Promise<{ isPublic: boolean; canPush: boolean }> {
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(`${API_BASE}/repos/${owner}/${repo}`, { headers });
+    if (!resp.ok) {
+      throw new Error(`GitHub API ${resp.status}: ${resp.statusText}`);
+    }
+    const data = await resp.json() as { private: boolean; permissions?: { push?: boolean } };
+    return {
+      isPublic: !data.private,
+      canPush: data.permissions?.push ?? false,
+    };
+  }
+
   get repoOwner(): string { return this.owner; }
   get repoName(): string { return this.repo; }
   get repoBranch(): string { return this.branch; }

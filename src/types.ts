@@ -100,8 +100,13 @@ export interface ClawContainerSDK {
     remove(path: string): Promise<void>;
   };
   git: {
-    clone(url: string, token: string): Promise<void>;
+    clone(url: string, token?: string): Promise<void>;
     push(message?: string): Promise<string>;
+    checkVisibility(owner: string, repo: string, token?: string): Promise<{ isPublic: boolean; canPush: boolean }>;
+  };
+  zip: {
+    export(): Promise<Blob>;
+    import(data: File | ArrayBuffer): Promise<void>;
   };
   logs(filter?: { source?: AuditSource; level?: AuditLevel; event?: AuditEvent }): AuditEntry[];
   use(plugin: ClawContainerPlugin): void;

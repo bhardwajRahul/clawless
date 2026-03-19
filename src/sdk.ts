@@ -25,6 +25,8 @@ import {
   mergeTemplateWithOptions,
   parseTemplateYaml,
 } from './templates.js';
+import { GitService } from './git-service.js';
+import JSZip from 'jszip';
 
 export class ClawContainer extends TypedEventEmitter<ClawContainerEvents> implements ClawContainerSDK {
   // ─── Static template API ─────────────────────────────────────────────────
@@ -310,11 +312,48 @@ export class ClawContainer extends TypedEventEmitter<ClawContainerEvents> implem
   // ─── Git ──────────────────────────────────────────────────────────────────
 
   git = {
-    clone: (url: string, token: string): Promise<void> => {
-      return this._container.cloneRepo(url, token);
+    clone: (url: string, token?: string): Promise<void> => {
+      return this._container.cloneRepo(url, token ?? '');
     },
     push: (message?: string): Promise<string> => {
       return this._container.syncToRepo(message);
+    },
+    checkVisibility: (owner: string, repo: string, token?: string): Promise<{ isPublic: boolean; canPush: boolean }> => {
+      return GitService.checkRepoVisibility(owner, repo, token);
+    },
+  };
+
+  // ─── Zip ─────────────────────────────────────────────────────────────────
+
+  zip = {
+    export: async (): Promise<Blob> => {
+      const zip = new JSZip();
+      const paths = await this._container.listWorkspaceFiles();
+      for (const p of paths) {
+        if (p.endsWith('/')) continue;
+        const data = await this._container.readFileBuffer(`workspace/${p}`);
+        zip.file(p, data);
+      }
+      return zip.generateAsync({ type: 'blob' });
+    },
+    import: async (data: File | ArrayBuffer): Promise<void> => {
+      const zip = await JSZip.loadAsync(data);
+      const entries: Promise<void>[] = [];
+      zip.forEach((relativePath, entry) => {
+        if (entry.dir) return;
+        entries.push(
+          entry.async('string').then(async (content) => {
+            const fullPath = `workspace/${relativePath}`;
+            const parts = fullPath.split('/');
+            for (let i = 1; i < parts.length - 1; i++) {
+              const dir = parts.slice(0, i + 1).join('/');
+              try { await this._container.mkdir(dir); } catch { /* exists */ }
+            }
+            await this._container.writeFile(fullPath, content);
+          }),
+        );
+      });
+      await Promise.all(entries);
     },
   };
 
