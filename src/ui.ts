@@ -291,8 +291,63 @@ export class UIManager {
 
   // ─── Tab management ─────────────────────────────────────────────────────────
 
+  private static readonly BINARY_EXTENSIONS = new Set([
+    '.pdf', '.ppt', '.pptx', '.doc', '.docx', '.xls', '.xlsx',
+    '.zip', '.tar', '.gz', '.rar', '.7z',
+    '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg',
+    '.mp3', '.mp4', '.wav', '.avi', '.mov', '.mkv',
+    '.exe', '.dll', '.so', '.dylib', '.bin', '.dat',
+    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+  ]);
+
+  private isBinaryFile(filename: string): boolean {
+    const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+    return UIManager.BINARY_EXTENSIONS.has(ext);
+  }
+
+  private showBinaryDownloadPopup(filename: string, fullPath: string): void {
+    const overlay = document.createElement('div');
+    overlay.className = 'binary-popup-overlay';
+    overlay.innerHTML = `
+      <div class="binary-popup">
+        <p>Cannot open <strong>${filename}</strong> in the editor.</p>
+        <p class="binary-popup-hint">This file type is not supported for preview.</p>
+        <div class="binary-popup-actions">
+          <button class="btn-primary" id="btn-binary-download">Download to Host</button>
+          <button class="btn-secondary" id="btn-binary-cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#btn-binary-cancel')!.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#btn-binary-download')!.addEventListener('click', async () => {
+      try {
+        const buffer = await this.container.readFileBuffer(fullPath);
+        const blob = new Blob([buffer]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert(`Failed to download: ${(e as Error).message}`);
+      }
+      overlay.remove();
+    });
+  }
+
   private async openFile(relativePath: string, filename: string): Promise<void> {
     const fullPath = `workspace/${relativePath}`;
+
+    // Binary files: show download popup instead of opening in editor
+    if (this.isBinaryFile(filename)) {
+      this.showBinaryDownloadPopup(filename, fullPath);
+      return;
+    }
 
     // If tab already exists, just switch to it
     if (this.tabs.some(t => t.filePath === fullPath)) {

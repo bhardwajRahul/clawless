@@ -428,5 +428,19 @@ body.resizing-row * { cursor: row-resize !important; user-select: none !importan
 }
 #cloud-browser-loading.hidden { display: none; }
 
+/* ─── Binary file download popup ────────────────────────────────── */
+.binary-popup-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center;
+}
+.binary-popup {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 24px 28px; max-width: 380px; text-align: center;
+}
+.binary-popup p { color: var(--text); font-size: 14px; margin-bottom: 8px; }
+.binary-popup .binary-popup-hint { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
+.binary-popup-actions { display: flex; gap: 10px; justify-content: center; }
+.binary-popup-actions button { min-width: 120px; }
+
 /* ─── Util ──────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
